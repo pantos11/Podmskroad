@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Московский край в Смутное время</title>
+    <style>
+        :root {
+            --primary-color: #e74c3c;
+            --secondary-color: #3498db;
+            --accent-color: #f1c40f;
+            --bg-color: #f5f7fa;
+            --text-color: #2c3e50;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .score, .timer, .progress {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .score { color: var(--primary-color); }
+        .timer { color: var(--secondary-color); }
+        
+        #progress-container {
+            width: 100%;
+            height: 12px;
+            background-color: #ecf0f1;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: var(--accent-color);
+            transition: width 0.5s ease;
+        }
+
+        #question-area {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        #question-text {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        #options-container {
+            display: grid;
+            gap: 15px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 1.1em;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover {
+            border-color: var(--secondary-color);
+            background: #eaf6ff;
+            transform: translateX(5px);
+        }
+
+        .option-btn.correct {
+            background-color: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+
+        .option-btn.wrong {
+            background-color: var(--error-color);
+            color: white;
+            border-color: var(--error-color);
+        }
+
+        .option-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        #feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none;
+        }
+
+        #feedback.success { background-color: #d5f5e3; color: #2c3e50; display: block; }
+        #feedback.error { background-color: #fadbd8; color: #c0392b; display: block; }
+
+        #next-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            display: none;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+
+        #next-btn:hover {
+            background-color: #c0392b;
+        }
+
+        /* Screens */
+        #start-screen, #end-screen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        #start-screen h1, #end-screen h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        #start-btn {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 20px 50px;
+            font-size: 1.5em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        #start-btn:hover {
+            transform: scale(1.05);
+        }
+
+        #final-score {
+            font-size: 3em;
+            color: var(--accent-color);
+            margin: 20px 0;
+        }
+
+        #restart-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #timer-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 5px;
+            background-color: var(--accent-color);
+            width: 100%;
+            border-radius: 15px 15px 0 0;
+            transition: width 1s linear;
+        }
+
+        #end-screen p {
+            font-size: 1.2em;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="timer-bar"></div>
+    
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+        <h1>Московский край во времена Смуты</h1>
+        <p>Проверьте свои знания по истории родного края в один из самых трудных периодов.</p>
+        <p><strong>Правила:</strong></p>
+        <ul style="text-align: left; display: inline-block;">
+            <li>10 вопросов о Смутном времени</li>
+            <li>15 минут на игру</li>
+            <li>Выбирайте правильный ответ</li>
+        </ul>
+        <button id="start-btn">Начать игру</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" style="display: none;">
+        <div id="header">
+            <div class="score">Счет: <span id="score-value">0</span></div>
+            <div class="timer">Время: <span id="timer-value">15:00</span></div>
+            <div class="progress">Вопрос: <span id="question-counter">1</span>/10</div>
+        </div>
+
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+
+        <div id="question-area">
+            <div id="question-text"></div>
+            <div id="options-container"></div>
+            <div id="feedback"></div>
+        </div>
+
+        <button id="next-btn">Следующий вопрос →</button>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" style="display: none;">
+        <h1>Игра завершена!</h1>
+        <div id="final-score">0</div>
+        <p id="result-message"></p>
+        <p>Ваш прогресс сохранен в памяти браузера.</p>
+        <button id="restart-btn">Играть снова</button>
+    </div>
+</div>
+
+<script>
+    // Игровой контент на основе предоставленных скриншотов учебника
+    const questions = [
+        {
+            question: "Какой царь взошел на престол после смерти Фёдора Ивановича в 1598 году?",
+            options: ["Борис Годунов", "Василий Шуйский", "Лжедмитрий I", "Михаил Романов"],
+            correct: 0,
+            explanation: "Со смертью Фёдора Ивановича пресеклась династия Рюриковичей. Земский собор избрал царём Бориса Годунова."
+        },
+        {
+            question: "Как звали первого самозванца, появившегося в 1603 году?",
+            options: ["Лжедмитрий I", "Лжедмитрий II", "Иван Болотников", "Хлопко Косолап"],
+            correct: 0,
+            explanation: "В 1603 году появился Лжедмитрий I, выдававший себя за царевича Дмитрия."
+        },
+        {
+            question: "Кто возглавил народное восстание в 1606-1607 годах, которое поддержали многие подмосковные города?",
+            options: ["Иван Болотников", "Кузьма Минин", "Дмитрий Пожарский", "Прокопий Ляпунов"],
+            correct: 0,
+            explanation: "Иван Болотников возглавил крупное восстание, в котором приняли участие жители разных городов."
+        },
+        {
+            question: "Какое событие произошло с Троице-Сергиевым монастырём в 1608 году?",
+            options: ["Начало героической обороны", "Полное разрушение", "Сдача врагу без боя", "Строительство новых стен"],
+            correct: 0,
+            explanation: "В 1608 году началась знаменитая 16-месячная оборона Троице-Сергиева монастыря от войск Лжедмитрия II."
+        },
+        {
+            question: "Кто такие «тушинский вор» и «тушинский лагерь»?",
+            options: ["Лжедмитрий II и его лагерь в Тушине", "Иван Болотников и его войско", "Польский король Сигизмунд III", "Казаки-разбойники"],
+            correct: 0,
+            explanation: "Лжедмитрия II прозвали «тушинским вором», так как он укрепился в селе Тушино под Москвой."
+        },
+        {
+            question: "Какой город в 1609 году выдержал осаду и стал символом мужества подмосковных городов?",
+            options: ["Волоколамск", "Коломна", "Можайск", "Серпухов"],
+            correct: 0,
+            explanation: "Волоколамск в 1609 году героически держал оборону против войск гетмана Сапеги."
+        },
+        {
+            question: "Какая крепость в 1610 году была взята войсками Сигизмунда III?",
+            options: ["Смоленск", "Москва", "Троице-Сергиев монастырь", "Новгород"],
+            correct: 0,
+            explanation: "В 1610 году польские войска короля Сигизмунда III овладели Смоленском после длительной осады."
+        },
+        {
+            question: "Кто возглавил Второе ополчение, которое в 1612 году освободило Москву?",
+            options: ["Минин и Пожарский", "Иван Болотников", "Борис Годунов", "Василий Шуйский"],
+            correct: 0,
+            explanation: "Второе ополчение возглавили земский староста Кузьма Минин и князь Дмитрий Пожарский."
+        },
+        {
+            question: "Какое событие произошло 1 декабря 1618 года?",
+            options: ["Деулинское перемирие", "Столбовский мир", "Венчание Михаила Романова на царство", "Осада Волоколамска"],
+            correct: 0,
+            explanation: "1 декабря 1618 года в деревне Деулино было подписано перемирие с Речью Посполитой."
+        },
+        {
+            question: "Какой царь был избран на Земском соборе в 1613 году?",
+            options: ["Михаил Романов", "Алексей Михайлович", "Фёдор Иоаннович", "Борис Годунов"],
+            correct: 0,
+            explanation: "В 1613 году Земский собор избрал на престол юного Михаила Фёдоровича Романова."
+        }
+    ];
+
+    // Игровые переменные
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let timeLeft = 15 * 60; // 15 минут в секундах
+    let timerInterval;
+    let gameActive = false;
+
+    // ДОМ элементы
+    const startScreen = document.getElementById('start-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const endScreen = document.getElementById('end-screen');
+    const questionText = document.getElementById('question-text');
+    const optionsContainer = document.getElementById('options-container');
+    const feedbackDiv = document.getElementById('feedback');
+    const nextBtn = document.getElementById('next-btn');
+    const scoreValue = document.getElementById('score-value');
+    const timerValue = document.getElementById('timer-value');
+    const questionCounter = document.getElementById('question-counter');
+    const progressBar = document.getElementById('progress-bar');
+    const timerBar = document.getElementById('timer-bar');
+    const finalScore = document.getElementById('final-score');
+    const resultMessage = document.getElementById('result-message');
+
+    // Функция сохранения прогресса
+    function saveProgress() {
+        localStorage.setItem('smutaGameProgress', JSON.stringify({
+            currentQuestionIndex: currentQuestionIndex,
+            score: score,
+            timeLeft: timeLeft,
+            gameActive: gameActive
+        }));
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem('smutaGameProgress');
+        if (saved) {
+            const data = JSON.parse(saved);
+            currentQuestionIndex = data.currentQuestionIndex;
+            score = data.score;
+            timeLeft = data.timeLeft;
+            gameActive = data.gameActive;
+        }
+    }
+
+    // Функция форматирования времени
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // Функция запуска игры
+    function startGame() {
+        // Сброс или продолжение
+        if (currentQuestionIndex >= questions.length) {
+            currentQuestionIndex = 0;
+            score = 0;
+            timeLeft = 15 * 60;
+        }
+        
+        gameActive = true;
+        startScreen.style.display = 'none';
+        endScreen.style.display = 'none';
+        gameScreen.style.display = 'block';
+        
+        // Запуск таймера
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerValue.textContent = formatTime(timeLeft);
+            timerBar.style.width = (timeLeft / (15 * 60) * 100) + '%';
+            
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                gameActive = false;
+                endGame("Время вышло!");
+            }
+            saveProgress();
+        }, 1000);
+        
+        // Показ первого вопроса
+        loadQuestion();
+        saveProgress();
+    }
+
+    // Функция загрузки вопроса
+    function loadQuestion() {
+        const q = questions[currentQuestionIndex];
+        questionText.textContent = `Вопрос ${currentQuestionIndex + 1}: ${q.question}`;
+        optionsContainer.innerHTML = '';
+        feedbackDiv.textContent = '';
+        feedbackDiv.className = '';
+        nextBtn.style.display = 'none';
+        questionCounter.textContent = currentQuestionIndex + 1;
+        progressBar.style.width = ((currentQuestionIndex + 1) / questions.length * 100) + '%';
+        
+        q.options.forEach((option, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = option;
+            btn.onclick = () => selectAnswer(index, btn);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    // Функция обработки выбора ответа
+    function selectAnswer(selectedIndex, btn) {
+        const q = questions[currentQuestionIndex];
+        const options = Array.from(optionsContainer.children);
+        
+        // Блокируем кнопки
+        options.forEach(opt => opt.disabled = true);
+        
+        if (selectedIndex === q.correct) {
+            btn.classList.add('correct');
+            score += 10;
+            scoreValue.textContent = score;
+            feedbackDiv.textContent = "Верно! +10 очков. " + (q.explanation || "");
+            feedbackDiv.className = "success";
+        } else {
+            btn.classList.add('wrong');
+            options[q.correct].classList.add('correct');
+            feedbackDiv.textContent = "Неверно. " + (q.explanation || "Правильный ответ подсвечен.");
+            feedbackDiv.className = "error";
+        }
+        
+        nextBtn.style.display = 'block';
+        saveProgress();
+    }
+
+    // Функция перехода к следующему вопросу
+    function nextQuestion() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < questions.length) {
+            loadQuestion();
+        } else {
+            endGame("Игра завершена!");
+        }
+    }
+
+    // Функция завершения игры
+    function endGame(message) {
+        gameActive = false;
+        if (timerInterval) clearInterval(timerInterval);
+        
+        gameScreen.style.display = 'none';
+        endScreen.style.display = 'block';
+        
+        finalScore.textContent = score;
+        
+        let msg = message + " Ваш результат: ";
+        if (score >= 90) {
+            msg += "Отлично! Вы прекрасно знаете историю Смутного времени!";
+        } else if (score >= 60) {
+            msg += "Хорошо! Но стоит повторить материал.";
+        } else if (score >= 30) {
+            msg += "Неплохо, но история края требует большего внимания.";
+        } else {
+            msg += "Попробуйте изучить параграф и пройти игру снова!";
+        }
+        resultMessage.textContent = msg;
+        
+        // Сохраняем конечный результат
+        localStorage.setItem('smutaGameProgress', JSON.stringify({
+            currentQuestionIndex: 0,
+            score: 0,
+            timeLeft: 15 * 60,
+            gameActive: false
+        }));
+    }
+
+    // Инициализация
+    document.getElementById('start-btn').onclick = startGame;
+    document.getElementById('restart-btn').onclick = startGame;
+    nextBtn.onclick = nextQuestion;
+
+    // Проверка сохраненного прогресса
+    window.onload = () => {
+        loadProgress();
+        if (gameActive && currentQuestionIndex > 0 && currentQuestionIndex < questions.length) {
+            // Продолжаем с сохраненного места
+            startScreen.style.display = 'none';
+            endScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            timerValue.textContent = formatTime(timeLeft);
+            scoreValue.textContent = score;
+            loadQuestion();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerValue.textContent = formatTime(timeLeft);
+                timerBar.style.width = (timeLeft / (15 * 60) * 100) + '%';
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endGame("Время вышло!");
+                }
+                saveProgress();
+            }, 1000);
+        }
+    };
+
+    // Сброс по умолчанию при первом запуске
+    if (!localStorage.getItem('smutaGameProgress')) {
+        localStorage.setItem('smutaGameProgress', JSON.stringify({
+            currentQuestionIndex: 0,
+            score: 0,
+            timeLeft: 15 * 60,
+            gameActive: false
+        }));
+    }
+</script>
+
+</body>
+</html>
