@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Лабиринт знаний | Образование Московской области</title>
+  <style>
+    /* ===== БАЗОВЫЕ СТИЛИ ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: #f4f1f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 12px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .game-wrapper {
+      max-width: 960px;
+      width: 100%;
+      background: #ffffff;
+      border-radius: 36px;
+      box-shadow: 0 20px 40px rgba(180, 160, 200, 0.25);
+      padding: 24px 28px 32px;
+      transition: all 0.3s;
+    }
+
+    .screen {
+      display: none;
+      flex-direction: column;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== ШАПКА ===== */
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 18px;
+      background: #ede7f6;
+      padding: 10px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      color: #4a3b5c;
+      font-size: 16px;
+      flex-wrap: wrap;
+    }
+
+    .stats span { display: flex; align-items: center; gap: 6px; }
+    .stats .score { color: #6b4e8a; }
+    .stats .timer { color: #b85c5c; }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 10px;
+      background: #e6dfee;
+      border-radius: 20px;
+      margin: 8px 0 18px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #b8a9d4, #8e7ab5);
+      border-radius: 20px;
+      transition: width 0.4s ease;
+    }
+
+    /* ===== ИГРОВОЕ ПОЛЕ (ЛАБИРИНТ + ВОПРОС) ===== */
+    .game-area {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .maze-container {
+      flex: 1 1 300px;
+      min-height: 260px;
+      background: #faf8fd;
+      border-radius: 24px;
+      border: 2px solid #e3daf0;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    #mazeCanvas {
+      width: 100%;
+      height: auto;
+      max-width: 400px;
+      display: block;
+      border-radius: 16px;
+      background: #f0ebf7;
+    }
+
+    .question-panel {
+      flex: 1 1 360px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .question-card {
+      background: #faf8fd;
+      border-radius: 28px;
+      padding: 22px 20px;
+      border: 2px solid #e3daf0;
+      box-shadow: 0 8px 20px rgba(180, 160, 200, 0.08);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .question-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2e2438;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    .answers-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .answer-btn {
+      background: #ffffff;
+      border: 2px solid #d9cde8;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 500;
+      color: #3d2f4f;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      min-height: 52px;
+    }
+
+    .answer-btn:hover:not(.disabled) {
+      background: #f1ebfa;
+      border-color: #b8a9d4;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px rgba(150, 120, 180, 0.15);
+    }
+
+    .answer-btn.correct {
+      background: #d4edda;
+      border-color: #7dbf8a;
+      color: #1e5a2a;
+      animation: pulseGreen 0.5s ease;
+    }
+
+    .answer-btn.wrong {
+      background: #f8d7da;
+      border-color: #d99a9a;
+      color: #7a2a2a;
+      animation: shake 0.4s ease;
+    }
+
+    .answer-btn.disabled {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .answer-btn .letter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      background: #ede7f6;
+      border-radius: 50%;
+      font-weight: 700;
+      color: #6b4e8a;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .answer-btn.correct .letter { background: #7dbf8a; color: #fff; }
+    .answer-btn.wrong .letter { background: #d99a9a; color: #fff; }
+
+    @keyframes pulseGreen {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .feedback {
+      margin-top: 12px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .feedback.show { display: block; }
+
+    .feedback.correct {
+      background: #e8f5e9;
+      border-left: 6px solid #7dbf8a;
+      color: #1e5a2a;
+    }
+
+    .feedback.wrong {
+      background: #fde8e8;
+      border-left: 6px solid #d99a9a;
+      color: #7a2a2a;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 50px;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: #8e7ab5;
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(142, 122, 181, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: #7a66a0;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(142, 122, 181, 0.45);
+    }
+
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-next {
+      margin-top: 14px;
+      align-self: flex-end;
+    }
+
+    /* ===== СТАРТОВЫЙ ЭКРАН ===== */
+    .start-screen {
+      text-align: center;
+      padding: 20px 0 10px;
+    }
+
+    .start-screen h1 {
+      font-size: 30px;
+      font-weight: 700;
+      color: #2e2438;
+      margin-bottom: 10px;
+      line-height: 1.2;
+    }
+
+    .start-screen .subtitle {
+      font-size: 17px;
+      color: #6b5e7a;
+      margin-bottom: 24px;
+    }
+
+    .start-screen .info-box {
+      background: #faf8fd;
+      border-radius: 24px;
+      padding: 20px;
+      margin-bottom: 24px;
+      border: 2px solid #e3daf0;
+      text-align: left;
+      font-size: 15px;
+      color: #4a3b5c;
+      line-height: 1.7;
+    }
+
+    .start-screen .info-box ul { list-style: none; padding: 0; }
+
+    .start-screen .info-box li {
+      padding: 5px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .start-screen .info-box li::before {
+      content: "✦";
+      color: #b8a9d4;
+      font-weight: 700;
+    }
+
+    /* ===== ЭКРАН РЕЗУЛЬТАТОВ ===== */
+    .results-screen {
+      text-align: center;
+      padding: 20px 0 10px;
+    }
+
+    .results-screen h2 {
+      font-size: 26px;
+      color: #2e2438;
+      margin-bottom: 14px;
+    }
+
+    .results-screen .score-display {
+      font-size: 50px;
+      font-weight: 800;
+      color: #8e7ab5;
+      margin: 10px 0 6px;
+    }
+
+    .results-screen .score-label {
+      font-size: 17px;
+      color: #6b5e7a;
+      margin-bottom: 22px;
+    }
+
+    .results-screen .medal {
+      font-size: 60px;
+      margin-bottom: 10px;
+    }
+
+    .results-screen .result-message {
+      font-size: 17px;
+      color: #4a3b5c;
+      margin-bottom: 24px;
+      line-height: 1.5;
+      padding: 0 12px;
+    }
+
+    .results-actions {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ===== МОДАЛЬНОЕ ОКНО ===== */
+    .timeout-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(46, 36, 56, 0.6);
+      backdrop-filter: blur(4px);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .timeout-overlay.show { display: flex; }
+
+    .timeout-box {
+      background: #fff;
+      border-radius: 28px;
+      padding: 32px 24px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+    }
+
+    .timeout-box h3 {
+      font-size: 22px;
+      color: #b85c5c;
+      margin-bottom: 10px;
+    }
+
+    .timeout-box p {
+      font-size: 15px;
+      color: #4a3b5c;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    /* ===== АДАПТИВ ===== */
+    @media (max-width: 700px) {
+      .game-area { flex-direction: column; }
+      .maze-container { min-height: 200px; }
+      #mazeCanvas { max-width: 280px; }
+    }
+
+    @media (max-width: 480px) {
+      .game-wrapper { padding: 14px; border-radius: 24px; }
+      .stats { font-size: 13px; padding: 8px 14px; gap: 10px; }
+      .question-card { padding: 16px; }
+      .question-text { font-size: 15px; }
+      .answer-btn { padding: 12px 14px; font-size: 13px; min-height: 46px; }
+      .answer-btn .letter { width: 26px; height: 26px; font-size: 12px; }
+      .btn { padding: 12px 22px; font-size: 14px; }
+      .start-screen h1 { font-size: 22px; }
+      .results-screen .score-display { font-size: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrapper">
+    <!-- ===== ЭКРАН 1: СТАРТ ===== -->
+    <div id="startScreen" class="screen active start-screen">
+      <h1>🧩 Лабиринт знаний</h1>
+      <p class="subtitle">Образование Московской области</p>
+
+      <div class="info-box">
+        <ul>
+          <li>10 вопросов по истории Московской области</li>
+          <li>15 минут на прохождение</li>
+          <li>10 очков за каждый правильный ответ</li>
+          <li>Правильный ответ открывает путь в лабиринте</li>
+          <li>Неограниченное количество попыток</li>
+        </ul>
+      </div>
+
+      <button class="btn btn-primary" id="startBtn">🚀 Начать игру</button>
+    </div>
+
+    <!-- ===== ЭКРАН 2: ИГРА ===== -->
+    <div id="gameScreen" class="screen">
+      <div class="game-header">
+        <div class="stats">
+          <span>⭐ Очки: <span class="score" id="scoreDisplay">0</span></span>
+          <span>⏱️ <span class="timer" id="timerDisplay">15:00</span></span>
+          <span>📋 <span id="questionCounter">1/10</span></span>
+        </div>
+      </div>
+
+      <div class="progress-bar-container">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div class="game-area">
+        <div class="maze-container">
+          <canvas id="mazeCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <div class="question-panel">
+          <div class="question-card">
+            <div class="question-text" id="questionText">Загрузка вопроса...</div>
+            <div class="answers-grid" id="answersGrid"></div>
+            <div class="feedback" id="feedback"></div>
+          </div>
+          <button class="btn btn-primary btn-next" id="nextBtn" style="display: none;">Следующий вопрос →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ЭКРАН 3: РЕЗУЛЬТАТЫ ===== -->
+    <div id="resultsScreen" class="screen results-screen">
+      <div class="medal" id="medalDisplay">🏆</div>
+      <h2>Игра завершена!</h2>
+      <div class="score-display" id="finalScore">0</div>
+      <div class="score-label">из 100 возможных очков</div>
+      <div class="result-message" id="resultMessage"></div>
+      <div class="results-actions">
+        <button class="btn btn-primary" id="restartBtn">🔄 Играть снова</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== МОДАЛЬНОЕ ОКНО ===== -->
+  <div class="timeout-overlay" id="timeoutOverlay">
+    <div class="timeout-box">
+      <h3>⏰ Время вышло!</h3>
+      <p>К сожалению, 15 минут истекли. Но вы можете попробовать снова!</p>
+      <button class="btn btn-primary" id="timeoutRestartBtn">🔄 Начать заново</button>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // ИГРОВЫЕ ДАННЫЕ: 10 вопросов по теме "Образование Московской области"
+    // ============================================================
+    const QUESTIONS = [
+      {
+        question: "В каком году советское правительство создало Центрально-Промышленную область, упразднив губернии и уезды?",
+        options: ["1925 г.", "1929 г.", "1932 г.", "1918 г."],
+        correctIndex: 1,
+        explanation: "14 января 1929 г. было принято постановление ЦИК СССР. Полгода спустя территория получила название Московская область."
+      },
+      {
+        question: "Какое название получила огромная территория, созданная в 1929 году, полгода спустя после образования Центрально-Промышленной области?",
+        options: ["Московская губерния", "Московская область", "Центральный край", "Московский округ"],
+        correctIndex: 1,
+        explanation: "Полгода спустя после создания Центрально-Промышленной области эта огромная территория получила название Московская область."
+      },
+      {
+        question: "Какие области были отделены от Московской области в 1930-х годах в результате сокращения её территории?",
+        options: ["Ленинградская, Новгородская, Псковская", "Калининская (Тверская), Тульская, Рязанская", "Смоленская, Брянская, Калужская", "Владимирская, Ивановская, Ярославская"],
+        correctIndex: 1,
+        explanation: "В 1930-х гг. территорию области сократили, отделив от неё Калининскую (Тверскую), Тульскую и Рязанскую области."
+      },
+      {
+        question: "По какому плану по всей стране начали восстанавливать уже существовавшие электростанции и строить новые?",
+        options: ["План ГОЭЛРО", "План первой пятилетки", "План коллективизации", "План индустриализации"],
+        correctIndex: 0,
+        explanation: "По плану ГОЭЛРО по всей стране начали восстанавливать уже существовавшие электростанции и строить новые."
+      },
+      {
+        question: "В каком году объявили о переходе к плановой экономике?",
+        options: ["1921 г.", "1925 г.", "1928 г.", "1930 г."],
+        correctIndex: 1,
+        explanation: "В 1925 г. на XIV съезде ВКП(б) объявили о переходе к плановой экономике."
+      },
+      {
+        question: "Какой комплекс реформ предлагалось провести в рамках перехода к плановой экономике?",
+        options: ["Индустриализацию, коллективизацию и культурную революцию", "Национализацию, милитаризацию и урбанизацию", "Приватизацию, либерализацию и демократизацию", "Электрификацию, механизацию и автоматизацию"],
+        correctIndex: 0,
+        explanation: "Предполагалось провести взаимосвязанный комплекс реформ — индустриализацию, коллективизацию и культурную революцию."
+      },
+      {
+        question: "Строительство какого канала было важнейшей всесоюзной стройкой?",
+        options: ["Волго-Донской канал", "Канал Москва—Волга", "Беломорско-Балтийский канал", "Канал имени Москвы"],
+        correctIndex: 1,
+        explanation: "Важнейшей всесоюзной стройкой было сооружение канала Москва—Волга. Общая длина водного пути должна была составить 128 км."
+      },
+      {
+        question: "В каком году было завершено строительство канала Москва—Волга и открыто движение по нему?",
+        options: ["1932 г.", "1935 г.", "1937 г.", "1940 г."],
+        correctIndex: 2,
+        explanation: "15 июля 1937 г. канал Москва—Волга был торжественно открыт для движения пассажирских и грузовых судов."
+      },
+      {
+        question: "Какое предприятие было основано в Химках в 1929 году?",
+        options: ["НПО «Энергомаш»", "Завод «Стандарт-бетон»", "Московский металлургический комбинат", "Каширская ГРЭС"],
+        correctIndex: 0,
+        explanation: "В 1929 году в Химках было основано АО «НПО Энергомаш»."
+      },
+      {
+        question: "Какой город получил статус города в 1938 году в связи с развитием промышленности?",
+        options: ["Шатура", "Балашиха", "Химки", "Электросталь"],
+        correctIndex: 1,
+        explanation: "В 1938 году статус города получила Балашиха (а также Химки), что было связано с промышленным развитием Подмосковья."
+      }
+    ];
+
+    // ============================================================
+    // СОСТОЯНИЕ ИГРЫ
+    // ============================================================
+    const state = {
+      currentQuestion: 0,
+      score: 0,
+      correctCount: 0,
+      totalQuestions: QUESTIONS.length,
+      timeLeft: 15 * 60,
+      timerInterval: null,
+      answered: false,
+      gameActive: false,
+      // Прогресс прохождения лабиринта: массив булевых значений
+      // true = путь открыт после правильного ответа
+      mazeProgress: new Array(QUESTIONS.length).fill(false)
+    };
+
+    // ============================================================
+    // DOM-ЭЛЕМЕНТЫ
+    // ============================================================
+    const startScreen = document.getElementById('startScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const resultsScreen = document.getElementById('resultsScreen');
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const questionCounter = document.getElementById('questionCounter');
+    const progressFill = document.getElementById('progressFill');
+    const questionText = document.getElementById('questionText');
+    const answersGrid = document.getElementById('answersGrid');
+    const feedback = document.getElementById('feedback');
+    const finalScore = document.getElementById('finalScore');
+    const resultMessage = document.getElementById('resultMessage');
+    const medalDisplay = document.getElementById('medalDisplay');
+    const timeoutOverlay = document.getElementById('timeoutOverlay');
+    const timeoutRestartBtn = document.getElementById('timeoutRestartBtn');
+    const canvas = document.getElementById('mazeCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // ============================================================
+    // ОТРИСОВКА ЛАБИРИНТА (Canvas API)
+    // ============================================================
+    function drawMaze() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const cellW = w / (state.totalQuestions + 1);
+      const cellH = h / 2;
+
+      // Очистка
+      ctx.clearRect(0, 0, w, h);
+
+      // Фон
+      ctx.fillStyle = '#f0ebf7';
+      ctx.fillRect(0, 0, w, h);
+
+      // Рисуем "комнаты" (10 шагов лабиринта)
+      const startX = cellW * 0.5;
+      const startY = h * 0.5;
+
+      for (let i = 0; i < state.totalQuestions; i++) {
+        const x = startX + i * cellW;
+        const y = startY;
+
+        // Определяем статус: пройдено, текущий, будущий
+        let fillColor = '#d9cde8'; // будущий
+        let borderColor = '#b8a9d4';
+        let labelColor = '#6b4e8a';
+
+        if (state.mazeProgress[i]) {
+          fillColor = '#b8e0b8'; // пройден
+          borderColor = '#7dbf8a';
+          labelColor = '#1e5a2a';
+        } else if (i === state.currentQuestion) {
+          fillColor = '#f5e6b8'; // текущий
+          borderColor = '#d4b85c';
+          labelColor = '#7a5c1e';
+        }
+
+        // Круг
+        ctx.beginPath();
+        ctx.arc(x, y, cellW * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Номер
+        ctx.fillStyle = labelColor;
+        ctx.font = `bold ${Math.max(10, cellW * 0.22)}px 'Segoe UI', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(i + 1, x, y);
+
+        // Соединительная линия (путь)
+        if (i < state.totalQuestions - 1) {
+          const nextX = startX + (i + 1) * cellW;
+          ctx.beginPath();
+          ctx.moveTo(x + cellW * 0.35, y);
+          ctx.lineTo(nextX - cellW * 0.35, y);
+          ctx.strokeStyle = state.mazeProgress[i] ? '#7dbf8a' : '#d9cde8';
+          ctx.lineWidth = 4;
+          ctx.setLineDash(state.mazeProgress[i] ? [] : [5, 5]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      // Финишный флажок
+      const finishX = startX + state.totalQuestions * cellW;
+      const finishY = startY;
+      ctx.font = `${cellW * 0.5}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏁', finishX, finishY);
+
+      // Подпись
+      ctx.fillStyle = '#6b5e7a';
+      ctx.font = `italic ${Math.max(10, cellW * 0.18)}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Путь к знаниям', w / 2, h - 20);
+    }
+
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    // ============================================================
+    // УПРАВЛЕНИЕ ЭКРАНАМИ
+    // ============================================================
+    function showScreen(screen) {
+      [startScreen, gameScreen, resultsScreen].forEach(s => s.classList.remove('active'));
+      screen.classList.add('active');
+    }
+
+    // ============================================================
+    // ЗАПУСК ИГРЫ
+    // ============================================================
+    function startGame() {
+      state.currentQuestion = 0;
+      state.score = 0;
+      state.correctCount = 0;
+      state.timeLeft = 15 * 60;
+      state.answered = false;
+      state.gameActive = true;
+      state.mazeProgress = new Array(QUESTIONS.length).fill(false);
+
+      scoreDisplay.textContent = '0';
+      timerDisplay.textContent = formatTime(state.timeLeft);
+      questionCounter.textContent = `1/${state.totalQuestions}`;
+      progressFill.style.width = '0%';
+      feedback.classList.remove('show', 'correct', 'wrong');
+      nextBtn.style.display = 'none';
+
+      if (state.timerInterval) clearInterval(state.timerInterval);
+      state.timerInterval = setInterval(() => {
+        if (!state.gameActive) return;
+        state.timeLeft--;
+        timerDisplay.textContent = formatTime(state.timeLeft);
+
+        if (state.timeLeft <= 0) {
+          clearInterval(state.timerInterval);
+          state.gameActive = false;
+          timeoutOverlay.classList.add('show');
+        }
+      }, 1000);
+
+      showScreen(gameScreen);
+      renderQuestion();
+      drawMaze();
+    }
+
+    // ============================================================
+    // ОТРИСОВКА ВОПРОСА
+    // ============================================================
+    function renderQuestion() {
+      const q = QUESTIONS[state.currentQuestion];
+      state.answered = false;
+
+      questionText.textContent = q.question;
+      questionCounter.textContent = `${state.currentQuestion + 1}/${state.totalQuestions}`;
+
+      const progress = ((state.currentQuestion) / state.totalQuestions) * 100;
+      progressFill.style.width = `${progress}%`;
+
+      answersGrid.innerHTML = '';
+      const letters = ['А', 'Б', 'В', 'Г'];
+
+      q.options.forEach((option, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'answer-btn';
+        btn.innerHTML = `<span class="letter">${letters[index]}</span> ${option}`;
+        btn.dataset.index = index;
+        btn.addEventListener('click', () => handleAnswer(index));
+        answersGrid.appendChild(btn);
+      });
+
+      feedback.classList.remove('show', 'correct', 'wrong');
+      feedback.textContent = '';
+      nextBtn.style.display = 'none';
+
+      drawMaze();
+    }
+
+    // ============================================================
+    // ОБРАБОТКА ОТВЕТА
+    // ============================================================
+    function handleAnswer(selectedIndex) {
+      if (state.answered || !state.gameActive) return;
+      state.answered = true;
+
+      const q = QUESTIONS[state.currentQuestion];
+      const isCorrect = selectedIndex === q.correctIndex;
+      const allButtons = answersGrid.querySelectorAll('.answer-btn');
+
+      allButtons.forEach(btn => btn.classList.add('disabled'));
+
+      allButtons.forEach((btn, idx) => {
+        if (idx === q.correctIndex) {
+          btn.classList.add('correct');
+        } else if (idx === selectedIndex) {
+          btn.classList.add('wrong');
+        }
+      });
+
+      if (isCorrect) {
+        state.score += 10;
+        state.correctCount++;
+        scoreDisplay.textContent = state.score;
+        // Открываем путь в лабиринте
+        state.mazeProgress[state.currentQuestion] = true;
+        drawMaze();
+
+        feedback.className = 'feedback correct show';
+        feedback.innerHTML = `✅ <strong>Верно!</strong> Путь открыт! ${q.explanation}`;
+      } else {
+        feedback.className = 'feedback wrong show';
+        feedback.innerHTML = `❌ <strong>Неверно.</strong> Правильный ответ: <em>${q.options[q.correctIndex]}</em>.<br>${q.explanation}`;
+      }
+
+      if (state.currentQuestion < state.totalQuestions - 1) {
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.textContent = 'Следующий вопрос →';
+      } else {
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.textContent = 'Завершить игру 🏁';
+      }
+    }
+
+    // ============================================================
+    // ПЕРЕХОД К СЛЕДУЮЩЕМУ ВОПРОСУ
+    // ============================================================
+    function nextQuestion() {
+      if (state.currentQuestion < state.totalQuestions - 1) {
+        state.currentQuestion++;
+        renderQuestion();
+      } else {
+        endGame();
+      }
+    }
+
+    // ============================================================
+    // ЗАВЕРШЕНИЕ ИГРЫ
+    // ============================================================
+    function endGame() {
+      state.gameActive = false;
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+
+      const totalScore = state.score;
+      const maxScore = state.totalQuestions * 10;
+      finalScore.textContent = totalScore;
+
+      const percent = (totalScore / maxScore) * 100;
+      let medal = '📚';
+      let message = '';
+
+      if (percent >= 90) {
+        medal = '🏆';
+        message = 'Отлично! Вы прекрасно знаете историю образования Московской области!';
+      } else if (percent >= 70) {
+        medal = '🥈';
+        message = 'Хороший результат! Немного повторите материал — и будет отлично!';
+      } else if (percent >= 50) {
+        medal = '🥉';
+        message = 'Неплохо! Но стоит ещё раз просмотреть тему «Образование Московской области».';
+      } else {
+        medal = '📖';
+        message = 'Попробуйте ещё раз! Изучите материал на страницах 148–161 учебника.';
+      }
+
+      medalDisplay.textContent = medal;
+      resultMessage.textContent = message;
+      showScreen(resultsScreen);
+    }
+
+    // ============================================================
+    // ПЕРЕЗАПУСК
+    // ============================================================
+    function restartGame() {
+      timeoutOverlay.classList.remove('show');
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+      state.gameActive = false;
+      showScreen(startScreen);
+    }
+
+    // ============================================================
+    // СОХРАНЕНИЕ ПРОГРЕССА (localStorage)
+    // ============================================================
+    function saveProgress() {
+      try {
+        localStorage.setItem('mo_maze_game', JSON.stringify({
+          bestScore: state.score,
+          lastPlayed: new Date().toISOString()
+        }));
+      } catch (e) {
+        // Игнорируем ошибки localStorage
+      }
+    }
+
+    // ============================================================
+    // ОБРАБОТЧИКИ СОБЫТИЙ
+    // ============================================================
+    startBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('click', restartGame);
+    timeoutRestartBtn.addEventListener('click', restartGame);
+    nextBtn.addEventListener('click', () => {
+      if (state.currentQuestion < state.totalQuestions - 1) {
+        nextQuestion();
+      } else {
+        endGame();
+      }
+    });
+
+    window.addEventListener('beforeunload', saveProgress);
+
+    // ============================================================
+    // ИНИЦИАЛИЗАЦИЯ
+    // ============================================================
+    try {
+      const saved = localStorage.getItem('mo_maze_game');
+      if (saved) {
+        const data = JSON.parse(saved);
+        // Можно использовать data.bestScore для отображения рекорда
+      }
+    } catch (e) {
+      // Игнорируем
+    }
+
+    // Первичная отрисовка лабиринта (на случай, если canvas виден)
+    drawMaze();
+  </script>
+</body>
+</html>
